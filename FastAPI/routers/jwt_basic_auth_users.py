@@ -1,13 +1,16 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, APIRouter
 from pydantic import BaseModel
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from jose import jwt
+from jose import jwt, JWTError
 from passlib.context import CryptContext
+from datetime import datetime, timedelta
 
 ALGORITHM = "HS256"
+ACCESS_TOKEN_DURATION = 1
+SECRET = "127341iouok23jf2iof7u39usdf90audp12aposcjkasopcqoweruipo2b"
 
 
-app = FastAPI()
+router = APIRouter(tags=["JWT Basic auth"])
 
 oauth2 = OAuth2PasswordBearer(tokenUrl="login")
 
@@ -48,8 +51,38 @@ def search_user_db(username: str):
         return UserDB(**users_db[username])
     
 
+def search_user(username: str):
+    if username in users_db:
+        return User(**users_db[username])
+
+    
+async def auth_user(token: str = Depends(oauth2)):
+
+    exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid authorization credentials",
+                            headers={"WWW-Autenticate": "Bearer"})
+    
+    try:
+        username = jwt.decode(token, SECRET, algorithms=ALGORITHM).get("sub")
+        if username is None:
+            raise exception
+
+    except JWTError:
+        raise exception
+    
+    return search_user(username)
+
+
+async def current_user(user: User = Depends(auth_user)):    
+    if user.disabled:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Inactive user")
+
+    return user
+
+
 # Methods
-@app.post("/login")
+@router.post("/login")
 async def login(form: OAuth2PasswordRequestForm = Depends()):
     user_db = users_db.get(form.username)
     if not user_db:
@@ -57,8 +90,18 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
                             detail="Incorrect username")
     
     user = search_user_db(form.username)
-    if not form.password == user.password:
+
+    if not crypt.verify(form.password, user.password):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
                             detail="Incorrect password")
-    
-    return {"access_token": user.username, "token_type": "bearer"}
+
+    access_token = {
+        "sub": user.username, # Subject
+        "exp": datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_DURATION)
+    }
+    return {"access_token": jwt.encode(access_token, SECRET, algorithm=ALGORITHM), "token_type": "bearer"}
+
+
+@router.get("/users/me")
+async def me(user: User = Depends(current_user)):
+    return user
