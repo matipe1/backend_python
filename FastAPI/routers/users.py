@@ -1,9 +1,9 @@
 # Start server: uvicorn users:app --reload
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-app = FastAPI()
+router = APIRouter(prefix='/users', tags=['users'], responses={404:{"error":"Not found"}})
 
 
 # User entity
@@ -15,7 +15,7 @@ class User(BaseModel):
     url: str
 
 
-# @app.get("/usersjson")
+# @router.get("/usersjson")
 # async def users_json():
 #     return [{
 #         "name": "Diego",
@@ -31,7 +31,7 @@ class User(BaseModel):
 #     }]
 
 
-# @app.get("/usersclass")
+# @router.get("/usersclass")
 # async def users_class():
 #     return User(name = "Diego", surname = "Petitto", age = 19, url = "https://diegol.dev")
 
@@ -41,21 +41,21 @@ users_fake_database = [User(id=1, name="Matias", surname="Peta", age=19, url="ht
 
 
 # Call all the users
-@app.get("/users")
+@router.get("/")
 async def users_class():
     return users_fake_database
 
 
 # Call through Path
 # Mostly used when you consider the parameter is obligatory (good practices)
-@app.get("/user/{id}")
+@router.get("/{id}")
 async def user(id: int):
     return search_user(id)
     
 
 # Call through Query
 # Mostly used when you consider the parameter is not necessary (good practices)
-@app.get("/user") # ThunderClient -> .../user/?id=1
+@router.get("/") # ThunderClient -> .../user/?id=1
 async def user_query(id: int):
     return search_user(id)
 
@@ -64,7 +64,7 @@ async def user_query(id: int):
 # The path with query should be .../user/1/?service=1 (quite a good practice)
 
 # Create a new user
-@app.post("/user/", status_code=201)
+@router.post("/", status_code=201)
 async def user(user: User):
     if type(search_user(user.id)) == User:
         raise HTTPException(status_code=409, detail='User already exists')
@@ -77,7 +77,7 @@ async def user(user: User):
 # And when you are not updating everything you should use patch
     
 # Update a user
-@app.put("/user/")
+@router.put("/")
 async def user(user: User):
 
     found = False
@@ -91,7 +91,7 @@ async def user(user: User):
         return {"error": "User not found"}
     
 
-@app.delete("/user/{id}")
+@router.delete("/{id}")
 async def user(id: int):
 
     found = False
