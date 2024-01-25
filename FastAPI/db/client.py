@@ -2,4 +2,10 @@
 
 from pymongo import MongoClient
 
-db_client = MongoClient()
+# Local database
+# db_client = MongoClient().local
+
+# Cloud database
+uri = 'mongodb+srv://diegomatias:diego123@cluster0.flzhifa.mongodb.net/?retryWrites=true&w=majority'
+
+db_client = MongoClient(uri).test

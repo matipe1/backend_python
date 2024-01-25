@@ -13,7 +13,7 @@ router = APIRouter(prefix='/usersdb',
 # Call all the users
 @router.get("/", response_model=list[User])
 async def users_class():
-    return users_scheme(db_client.local.users.find())
+    return users_scheme(db_client.users.find())
 
 
 # Call a user
@@ -37,9 +37,9 @@ async def user(user: User):
     user_dict = dict(user)
     del user_dict["id"]
 
-    id = db_client.local.users.insert_one(user_dict).inserted_id
+    id = db_client.users.insert_one(user_dict).inserted_id
 
-    new_user = user_scheme(db_client.local.users.find_one({"_id": id}))
+    new_user = user_scheme(db_client.users.find_one({"_id": id}))
 
     return User(**new_user)
     
@@ -51,7 +51,7 @@ async def user(user: User):
     user_dict = dict(user)
     try:
         
-        db_client.local.users.find_one_and_replace(
+        db_client.users.find_one_and_replace(
             {
             "_id": ObjectId(user.id)
             }, user_dict)
@@ -69,7 +69,7 @@ async def user(user: User):
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 async def user(id: str):
     
-    found = db_client.local.users.find_one_and_delete({"_id": ObjectId(id)})
+    found = db_client.users.find_one_and_delete({"_id": ObjectId(id)})
 
     if not found:
         return {"error": "User not found"}
@@ -79,7 +79,7 @@ async def user(id: str):
 # Recycled functions
 def search_user(key, field: str):
     try:
-        user = db_client.local.users.find_one({key: field})
+        user = db_client.users.find_one({key: field})
         return User(**user_scheme(user))
 
     except:
